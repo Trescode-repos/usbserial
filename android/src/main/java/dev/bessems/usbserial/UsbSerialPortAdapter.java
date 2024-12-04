@@ -135,7 +135,11 @@ public class UsbSerialPortAdapter implements MethodCallHandler, EventChannel.Str
                 result.success(null);
                 break;
             }
-
+            case "setBreak":
+                boolean v = call.argument("breakState");
+                m_SerialDevice.setBreak(v);
+                result.success(null);
+                break;
             default:
                 result.notImplemented();
         }

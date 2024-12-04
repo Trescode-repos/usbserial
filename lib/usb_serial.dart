@@ -27,10 +27,12 @@ class _Equality {
 /// ```
 class UsbEvent {
   /// Event passed to usbEventStream when a USB device is attached.
-  static const String ACTION_USB_ATTACHED = "android.hardware.usb.action.USB_DEVICE_ATTACHED";
+  static const String ACTION_USB_ATTACHED =
+      "android.hardware.usb.action.USB_DEVICE_ATTACHED";
 
   /// Event passed to usbEventStream when a USB device is detached.
-  static const String ACTION_USB_DETACHED = "android.hardware.usb.action.USB_DEVICE_DETACHED";
+  static const String ACTION_USB_DETACHED =
+      "android.hardware.usb.action.USB_DEVICE_DETACHED";
 
   /// either ACTION_USB_ATTACHED or ACTION_USB_DETACHED
   String? event;
@@ -107,6 +109,7 @@ class UsbPort extends AsyncDataSinkSource {
 
   bool _dtr = false;
   bool _rts = false;
+  bool _breakState = false;
 
   int get baudRate => _baudRate;
   int get dataBits => _dataBits;
@@ -120,7 +123,8 @@ class UsbPort extends AsyncDataSinkSource {
   /// You don't need to use this directly as you get UsbPort from
   /// [UsbDevice.create].
   factory UsbPort(String methodChannelName) {
-    return UsbPort._internal(MethodChannel(methodChannelName), EventChannel(methodChannelName + "/stream"));
+    return UsbPort._internal(MethodChannel(methodChannelName),
+        EventChannel(methodChannelName + "/stream"));
   }
 
   /// returns the asynchronous input stream.
@@ -138,7 +142,9 @@ class UsbPort extends AsyncDataSinkSource {
   @override
   Stream<Uint8List>? get inputStream {
     if (_inputStream == null) {
-      _inputStream = _eventChannel.receiveBroadcastStream().map<Uint8List>((dynamic value) => value);
+      _inputStream = _eventChannel
+          .receiveBroadcastStream()
+          .map<Uint8List>((dynamic value) => value);
     }
     return _inputStream;
   }
@@ -167,6 +173,12 @@ class UsbPort extends AsyncDataSinkSource {
     return await _channel.invokeMethod("setRTS", {"value": rts});
   }
 
+  /// Sets or clears the break port to value [breakState].
+  Future<void> setBreak(bool breakState) async {
+    _breakState = breakState;
+    return await _channel.invokeMethod("setBreak", {"breakState": breakState});
+  }
+
   /// Asynchronously writes [data].
   @override
   Future<void> write(Uint8List data) async {
@@ -178,19 +190,26 @@ class UsbPort extends AsyncDataSinkSource {
   /// ```dart
   /// _port.setPortParameters(115200, UsbPort.DATABITS_8, UsbPort.STOPBITS_1, UsbPort.PARITY_NONE);
   /// ```
-  Future<void> setPortParameters(int baudRate, int dataBits, int stopBits, int parity) async {
+  Future<void> setPortParameters(
+      int baudRate, int dataBits, int stopBits, int parity) async {
     _baudRate = baudRate;
     _dataBits = dataBits;
     _stopBits = stopBits;
     _parity = parity;
 
-    return await _channel.invokeMethod("setPortParameters", {"baudRate": baudRate, "dataBits": dataBits, "stopBits": stopBits, "parity": parity});
+    return await _channel.invokeMethod("setPortParameters", {
+      "baudRate": baudRate,
+      "dataBits": dataBits,
+      "stopBits": stopBits,
+      "parity": parity
+    });
   }
 
   /// Sets the flow control parameter.
   Future<void> setFlowControl(int flowControl) async {
     _flowControl = flowControl;
-    return await _channel.invokeMethod("setFlowControl", {"flowControl": flowControl});
+    return await _channel
+        .invokeMethod("setFlowControl", {"flowControl": flowControl});
   }
 
   /// return string name of databits
@@ -257,7 +276,16 @@ class UsbPort extends AsyncDataSinkSource {
     }
   }
 
-  List<Object> get _props => [_baudRate, _dataBits, _stopBits, _parity, _flowControl, _rts, _dtr];
+  List<Object> get _props => [
+        _baudRate,
+        _dataBits,
+        _stopBits,
+        _parity,
+        _flowControl,
+        _rts,
+        _dtr,
+        _breakState
+      ];
 
   @override
   bool operator ==(other) {
@@ -274,7 +302,7 @@ class UsbPort extends AsyncDataSinkSource {
 
   @override
   String toString() {
-    return "Buad rate : $_baudRate, Data bits : ${dataBitToString()}, Stop bits : ${stopBitsToString()}, Parity : ${parityToString()}, Flow control : ${flowControlToString()}, RTS : ${_rts.toString()}, DTR : ${_dtr.toString()} ";
+    return "Buad rate : $_baudRate, Data bits : ${dataBitToString()}, Stop bits : ${stopBitsToString()}, Parity : ${parityToString()}, Flow control : ${flowControlToString()}, RTS : ${_rts.toString()}, DTR : ${_dtr.toString()}, Break State : ${_breakState.toString()} ";
   }
 }
 
@@ -307,14 +335,19 @@ class UsbDevice {
   /// The number of interfaces on this UsbPort
   final int? interfaceCount;
 
-  UsbDevice(
-      this.deviceName, this.vid, this.pid, this.productName,
+  UsbDevice(this.deviceName, this.vid, this.pid, this.productName,
       this.manufacturerName, this.deviceId, this.serial, this.interfaceCount);
 
   static UsbDevice fromJSON(dynamic json) {
     return UsbDevice(
-        json["deviceName"], json["vid"], json["pid"], json["productName"],
-        json["manufacturerName"], json["deviceId"], json["serialNumber"], json["interfaceCount"]);
+        json["deviceName"],
+        json["vid"],
+        json["pid"],
+        json["productName"],
+        json["manufacturerName"],
+        json["deviceId"],
+        json["serialNumber"],
+        json["interfaceCount"]);
   }
 
   @override
@@ -366,7 +399,8 @@ class UsbSerial {
   static const String PL2303 = "pl2303";
 
   static const MethodChannel _channel = const MethodChannel('usb_serial');
-  static const EventChannel _eventChannel = const EventChannel('usb_serial/usb_events');
+  static const EventChannel _eventChannel =
+      const EventChannel('usb_serial/usb_events');
   static Stream<UsbEvent>? _eventStream;
 
   /// Use this stream to detect if a USB device is plugged in or removed.
@@ -387,7 +421,8 @@ class UsbSerial {
   /// ```
   static Stream<UsbEvent>? get usbEventStream {
     if (_eventStream == null) {
-      _eventStream = _eventChannel.receiveBroadcastStream().map<UsbEvent>((value) {
+      _eventStream =
+          _eventChannel.receiveBroadcastStream().map<UsbEvent>((value) {
         UsbEvent msg = UsbEvent();
         msg.device = UsbDevice.fromJSON(value);
         msg.event = value["event"];
@@ -410,8 +445,15 @@ class UsbSerial {
   /// ```dart
   /// UsbPort port = await UsbSerial.create(0x1000, 0x2000);
   /// ```
-  static Future<UsbPort?> create(int vid, int pid, [String type = "", int interface = -1]) async {
-    String? methodChannelName = await _channel.invokeMethod("create", {"type": type, "vid": vid, "pid": pid, "deviceId": -1, "interface": interface});
+  static Future<UsbPort?> create(int vid, int pid,
+      [String type = "", int interface = -1]) async {
+    String? methodChannelName = await _channel.invokeMethod("create", {
+      "type": type,
+      "vid": vid,
+      "pid": pid,
+      "deviceId": -1,
+      "interface": interface
+    });
 
     if (methodChannelName == null) {
       return null;
@@ -428,8 +470,15 @@ class UsbSerial {
   ///
   /// [type] = One of [UserSerial.CDC], [UsbSerial.CH34x], [UsbSerial.CP210x], [UsbSerial.FTDI], [UsbSerial.PL2303] or empty for auto detect.
   /// [interface] = Interface of the Usb Interface, -1 for auto detect.
-  static Future<UsbPort?> createFromDeviceId(int? deviceId, [String type = "", int interface = -1]) async {
-    String? methodChannelName = await _channel.invokeMethod("create", {"type": type, "vid": -1, "pid": -1, "deviceId": deviceId, "interface": interface});
+  static Future<UsbPort?> createFromDeviceId(int? deviceId,
+      [String type = "", int interface = -1]) async {
+    String? methodChannelName = await _channel.invokeMethod("create", {
+      "type": type,
+      "vid": -1,
+      "pid": -1,
+      "deviceId": deviceId,
+      "interface": interface
+    });
 
     if (methodChannelName == null) {
       return null;
